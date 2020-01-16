@@ -15,7 +15,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javassist.Modifier;
 import org.mozilla.javascript.BaseFunction;
 import org.reflections.Reflections;
@@ -24,7 +23,8 @@ import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.SubTypesScanner;
 import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.scanners.TypeElementsScanner;
-import org.reflections.util.ConfigurationBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -37,6 +37,8 @@ public class SandboxRegistry {
     private final Map<String, Class<?>> classes;
     private final Map<String, BaseFunction> functions;
     private final Reflections reflections;
+
+    private static final Logger logger = LoggerFactory.getLogger(SandboxRegistry.class);
 
     public static SandboxRegistry instance() {
         return instance != null ? instance : (instance = new SandboxRegistry());
@@ -79,6 +81,13 @@ public class SandboxRegistry {
         reflections
                 .getTypesAnnotatedWith(AllowedInRhino.class)
                 .forEach((cls) -> {
+                    logger.info("Class edded to allowed list: " + cls.getName());
+                    allowedClasses.add(cls.getName());
+                });
+        reflections
+                .getTypesAnnotatedWith(RhinoClass.class)
+                .forEach((cls) -> {
+                    logger.info("Class edded to allowed list: " + cls.getName());
                     allowedClasses.add(cls.getName());
                 });
     }
@@ -88,7 +97,8 @@ public class SandboxRegistry {
         reflections
                 .getTypesAnnotatedWith(RhinoClass.class)
                 .forEach((cls) -> {
-                    allowedClasses.add(cls.getName());
+                    validate(classes, cls.getAnnotation(RhinoClass.class).value(), "class");
+                    logger.info("Class edded as JS object: " + cls.getAnnotation(RhinoClass.class).value() + " (" + cls.getName() + ")");
                     classes.put(cls.getAnnotation(RhinoClass.class).value(), cls);
                 });
     }
@@ -103,10 +113,12 @@ public class SandboxRegistry {
         reflections
                 .getTypesAnnotatedWith(RhinoFunction.class)
                 .forEach((cls) -> {
+                    validate(functions, cls.getAnnotation(RhinoFunction.class).value(), "function");
                     if (!(BaseFunction.class.isAssignableFrom(cls))) {
                         throw new IllegalStateException("Declared class in not an instance of BaseFunction: " + cls.getName());
                     }
                     try {
+                        logger.info("Class added as JS function: " + cls.getAnnotation(RhinoFunction.class).value() + " (" + cls.getName() + ")");
                         functions.put(cls.getAnnotation(RhinoFunction.class).value(), (BaseFunction) cls.newInstance());
                     } catch (Exception e) {
                         throw new IllegalStateException(e);
@@ -118,16 +130,23 @@ public class SandboxRegistry {
         reflections
                 .getMethodsAnnotatedWith(RhinoFunction.class)
                 .forEach((method) -> {
+                    validate(functions, method.getAnnotation(RhinoFunction.class).value(), "function");
                     if (!Modifier.isStatic(method.getModifiers())) {
                         throw new IllegalStateException("Method should be static: " + method.getDeclaringClass().getName() + "." + method.getName());
                     }
                     if (!Modifier.isPublic(method.getModifiers())) {
                         throw new IllegalStateException("Method should be public: " + method.getDeclaringClass().getName() + "." + method.getName());
                     }
-
+                    logger.info("Static function added as JS function: " + method.getAnnotation(RhinoFunction.class).value() + " (" + method.getDeclaringClass().getName() + "." + method.getName() + ")");
                     functions.put(method.getAnnotation(RhinoFunction.class).value(), new StaticWrapper(method));
 
                 });
+    }
+
+    private void validate(Map<String, ?> classes, String value, String type) {
+        if (classes.containsKey(value)) {
+            throw new IllegalStateException("Cannot add `" + value + "` to " + type + " list");
+        }
     }
 
     private class StaticWrapper extends RhinoBaseFunction {

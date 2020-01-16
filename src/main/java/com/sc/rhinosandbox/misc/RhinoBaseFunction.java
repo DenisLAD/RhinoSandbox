@@ -152,12 +152,12 @@ public abstract class RhinoBaseFunction extends BaseFunction {
     public static Map<String, ?> fromObject(Scriptable so) {
         Map<String, Object> result = new HashMap<>();
 
-        for (String key : (String[]) so.getIds()) {
-            Object value = so.get(key, so);
+        for (Object key : (Object[]) so.getIds()) {
+            Object value = so.get(key.toString(), so);
             if (value instanceof NativeArray) {
                 value = fromArray((NativeArray) value);
             }
-            result.put(key, value);
+            result.put(key.toString(), value);
         }
 
         return result;

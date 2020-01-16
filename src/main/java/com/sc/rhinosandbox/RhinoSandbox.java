@@ -7,6 +7,9 @@ package com.sc.rhinosandbox;
 
 import com.sc.rhinosandbox.rhino.SandboxContextFactory;
 import com.sc.rhinosandbox.rhino.SandboxRegistry;
+import java.beans.BeanInfo;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextAction;
 import org.mozilla.javascript.ContextFactory;
@@ -36,7 +39,8 @@ public class RhinoSandbox {
         topLevel = (ctx = Context.enter()).initStandardObjects();
 
         SandboxRegistry.instance().getClasses().forEach((key, value) -> {
-            topLevel.defineProperty(key, ctx.getWrapFactory().wrapJavaClass(ctx, topLevel, value), ScriptableObject.DONTENUM);
+            Scriptable wrapped;
+            topLevel.defineProperty(key, wrapped = ctx.getWrapFactory().wrapJavaClass(ctx, topLevel, value), ScriptableObject.DONTENUM);
         });
 
         SandboxRegistry.instance().getFunctions().forEach((key, value) -> {
