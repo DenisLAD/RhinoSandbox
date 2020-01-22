@@ -23,7 +23,7 @@ public class SandboxWrapFactory extends WrapFactory {
     public Scriptable wrapAsJavaObject(Context cx, Scriptable scope, Object javaObject, Class<?> staticType) {
         return new SandboxNativeObject(scope, javaObject, staticType);
     }
-    
+     
     
     
 }
